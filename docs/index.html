@@ -55,7 +55,7 @@ td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 td textarea{min-height:38px;font-size:14px}
 .no-cell{width:74px}
 .no-cell input{text-align:center;font-weight:600}
-.act{width:132px;white-space:nowrap}
+.act{width:104px;white-space:nowrap}
 .count{font-size:11px;color:var(--muted);text-align:right;margin-top:2px}
 .count.over{color:var(--err);font-weight:600}
 tr.other td{background:var(--soft)}
@@ -416,53 +416,12 @@ const SCHEMA_PROMPT = `你要把產品規格整理成長庚大學採購用的「
 項目數量：
 - 沒有目標數量，也不要設定任何數量目標。列數由上面的分類自然決定。
 - 不要為了增加列數而把同一類拆開，也不要為了精簡而丟掉查得到的規格。
-- 但是每一格都有 ${LIMIT} 字元的硬上限。若某一類的內容裝不下，就把它拆成兩列
-  （例如「電器規格」與「機身規格」），而不是硬塞、也不是刪掉事實。
 
 語氣：
 - 寫成客觀、可驗收的敘述。行銷用語要改寫或刪除
   （「職人手法」「全新工藝」「風味清爽不稀釋」這類）。
 - 但不要因為避開行銷用語就把客觀事實一起丟掉。
   「12 分鐘完成冷萃」是可驗收的事實，要保留；「革命性冷萃工藝」是行銷語，刪掉。`;
-
-const SHORTEN_PROMPT = `以下每一列的內容超過了 ${LIMIT} 字元的硬上限。
-
-只輸出一個 JSON 物件，不要有其他文字，也不要 markdown 圍欄：
-
-{ "items": [ { "id": 0, "rows": [ { "name": "規格名稱", "standard": "品質標準" } ] } ] }
-
-規則：
-- 每一個 id 對應輸入的同一個 id，rows 是它壓縮後的結果。
-- 優先做法是刪掉贅字與修飾語，把 name 與 standard 都壓到 ${LIMIT} 字元以內。
-- **不可以刪掉任何可驗收的數值或事實。** 寧可拆成兩列也不要丟資訊。
-- 真的壓不下就把該列拆成兩列，rows 給兩個元素，name 用相近但可區分的名稱。
-- 不得使用列點、編號或破折號開頭。`;
-
-// 把超過字數的列送回模型壓縮；壓不下的允許它拆成兩列，避免丟失事實
-async function shortenOverLimit(indices){
-  const items = indices.map(i => ({ id:i, name:rows[i].name, standard:rows[i].standard }));
-  const r = await callResponses({
-    model: $('model').value, instructions: SHORTEN_PROMPT,
-    input: JSON.stringify({ items }), max_output_tokens: 3000,
-  });
-  let t = r.text.trim();
-  const f = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  if(f) t = f[1].trim();
-  const parsed = JSON.parse(t);
-  if(!Array.isArray(parsed.items)) throw new Error('壓縮結果格式不符');
-
-  // 由後往前替換，避免插入新列後索引位移
-  const byId = new Map(parsed.items.map(x => [x.id, x.rows]));
-  for(const i of [...indices].sort((a,b)=>b-a)){
-    const repl = byId.get(i);
-    if(!Array.isArray(repl) || !repl.length) continue;
-    rows.splice(i, 1, ...repl.map(x => ({
-      no: rows[i].no,
-      name: String(x.name||'').trim(),
-      standard: String(x.standard||'').trim(),
-    })));
-  }
-}
 
 async function doQuery(){
   if(!getKey()){ $('cfg').open=true; setSt('st1','請先在「設定」填入 API Key。',true); return; }
@@ -511,15 +470,8 @@ async function doQuery(){
     sources = [];
     for (const c of all) if (!sources.some(x=>x.url===c.url)) sources.push(c);
     renderSources(info);
-    render();
 
-    // 分類合併後常會超過字數上限，自動壓縮一次而不是丟回給使用者手動刪字
-    const over = rows.map((r,i)=>i).filter(i=>rows[i].name.length>LIMIT||rows[i].standard.length>LIMIT);
-    if(over.length){
-      setSt('st1','有 '+over.length+' 列超過 '+LIMIT+' 字元，壓縮中…');
-      try{ await shortenOverLimit(over); render(); }
-      catch(e){ console.warn('自動壓縮失敗：'+e.message); }
-    }
+    render();
     $('result').hidden = false;
     setSt('st1','查詢完成，請確認下方內容');
     loadUsage();
@@ -573,19 +525,9 @@ function render(){
 
     const tdAct = document.createElement('td'); tdAct.className='act';
     const b = (t,fn,cls)=>{const x=document.createElement('button');x.className='mini '+(cls||'ghost');x.textContent=t;x.onclick=fn;return x;};
-    const shortBtn = b('縮', async () => {
-      shortBtn.disabled = true; shortBtn.textContent = '…';
-      try { await shortenOverLimit([i]); render(); }   // render 會重畫整列，按鈕跟著重建
-      catch(e){
-        shortBtn.textContent = '縮'; shortBtn.disabled = false;
-        setSt('st2','壓縮失敗：'+e.message, true);
-      }
-    });
-    shortBtn.title = '請模型把這一列壓到 ' + LIMIT + ' 字元內，必要時會拆成兩列';
     tdAct.append(
       b('↑',()=>{ if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];render();} }),
       b('↓',()=>{ if(i<rows.length-1){[rows[i+1],rows[i]]=[rows[i],rows[i+1]];render();} }),
-      shortBtn,
       b('✕',()=>{ rows.splice(i,1); render(); })
     );
 
