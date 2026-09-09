@@ -8,9 +8,15 @@
 
 ---
 
-## 使用
+## 線上直接用
 
-打開 `output/請購規範產生器.html`。
+**https://llance1122.github.io/cgu-purchase-spec/**
+
+開啟後填入自己的 CGU API Key 即可。金鑰存在你自己的瀏覽器，不會傳給任何人。
+
+想離線使用的話，下載 `output/請購規範產生器.html` 雙擊開啟，功能完全相同。
+
+## 使用步驟
 
 1. **設定** —— 貼上 CGU API Key（到 [AIR 平台](https://air.cgu.edu.tw/workspace4/LLMAPI/index.php) 取得）
 2. **基本資料** —— 填規格代號、材料編號，產品欄貼網址或直接輸入型號
@@ -79,8 +85,12 @@ node build-web.js
 web/index.html      原始檔（含 __TEMPLATE_B64__ 佔位符，不能直接開）
 build-web.js        把範本內嵌進去，產出可用的單檔
 template.docx       空白範本
-output/             建置產物，這個才是要開的檔案
+output/             建置產物，離線使用時開這個
+docs/index.html     同一份內容，供 GitHub Pages 提供服務
 ```
+
+`output/` 與 `docs/` 是同一份檔案的兩個複本，只是檔名不同 ——
+前者給人下載後雙擊，後者讓 Pages 的網址乾淨。`build-web.js` 會同時產生兩者。
 
 **不要直接開 `web/index.html`** —— 那是未建置的原始檔。真的開了會跳出提示告訴你開錯了。
 
