@@ -399,7 +399,7 @@ const SCHEMA_PROMPT = `你要把產品規格整理成台灣大學採購用的「
 - name 是規格項目（例如「處理器」「列印速度」），standard 照抄實際規格
 - rows 只放產品本身的硬體與功能規格
 - 不要把保固或推薦型號放進 rows，它們有各自的欄位
-- 通常 5 到 12 項，涵蓋主要規格即可`;
+- 通常 5 到 15 項，涵蓋主要規格即可`;
 
 async function doQuery(){
   if(!getKey()){ $('cfg').open=true; setSt('st1','請先在「設定」填入 API Key。',true); return; }
@@ -552,8 +552,8 @@ function info(){
 async function generate(){
   const list = rows.map(r=>({no:r.no,name:r.name.trim(),standard:r.standard.trim()}));
   const w = $('warranty').value.trim();
-  if(w) list.push({no:'',name:'保固',standard:w});
   if($('ict').checked) list.push({no:'',name:'其他',standard:ICT_NOTE});
+  if(w) list.push({no:'',name:'保固',standard:w});
 
   const bad = list.filter(r=>r.name.length>LIMIT||r.standard.length>LIMIT);
   if(bad.length){ setSt('st2','有 '+bad.length+' 格超過 '+LIMIT+' 字元。',true); return; }
